@@ -2,11 +2,12 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 import httpx
 from typing import List, Optional
 from enum import Enum
+import re
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./reviews.db"
@@ -41,8 +42,24 @@ class Review(Base):
 
 # Pydantic Models
 class ReviewBase(BaseModel):
-    rating: float = Field(ge=1, le=5)
-    comment: str = Field(min_length=1, max_length=1000)
+    rating: float = Field(
+        ge=1, 
+        le=5, 
+        description="Rating must be between 1 and 5"
+    )
+    comment: str = Field(
+        min_length=1,
+        max_length=1000,
+        regex="^[a-zA-Z0-9\s.,!?-]*$",
+        description="Review comment with allowed characters"
+    )
+
+    @validator('comment')
+    def sanitize_comment(cls, v):
+        # Remove any potential HTML tags
+        v = re.sub('<[^<]+?>', '', v)
+        # Additional sanitization as needed
+        return v.strip()
 
 class ReviewCreate(ReviewBase):
     item_id: int
