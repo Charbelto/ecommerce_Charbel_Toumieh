@@ -5,6 +5,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel, Field
 import enum
 from typing import Optional
+from sqlalchemy import Index
+from utils.cache import cache_response, invalidate_cache
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./inventory.db"
@@ -25,10 +27,15 @@ class Item(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
-    category = Column(String)
+    category = Column(String, index=True)
     price = Column(Float)
     description = Column(String)
-    stock_count = Column(Integer, default=0)
+    stock_count = Column(Integer, default=0, index=True)
+
+    # Add composite index for common queries
+    __table_args__ = (
+        Index('idx_category_price', 'category', 'price'),
+    )
 
 # Pydantic Models
 class ItemBase(BaseModel):
@@ -78,7 +85,8 @@ def add_item(item: ItemCreate, db: Session = Depends(get_db)):
     return db_item
 
 @app.put("/items/{item_id}", response_model=ItemResponse)
-def update_item(item_id: int, item_update: ItemUpdate, db: Session = Depends(get_db)):
+@cache_response(expire_time_seconds=300)
+async def update_item(item_id: int, item_update: ItemUpdate, db: Session = Depends(get_db)):
     db_item = db.query(Item).filter(Item.id == item_id).first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -89,6 +97,9 @@ def update_item(item_id: int, item_update: ItemUpdate, db: Session = Depends(get
     
     db.commit()
     db.refresh(db_item)
+    
+    # Invalidate cache after update
+    invalidate_cache(f"get_item:{item_id}:*")
     return db_item
 
 @app.post("/items/{item_id}/deduct")
@@ -113,7 +124,8 @@ def get_all_items(db: Session = Depends(get_db)):
     return db.query(Item).all()
 
 @app.get("/items/{item_id}", response_model=ItemResponse)
-def get_item(item_id: int, db: Session = Depends(get_db)):
+@cache_response(expire_time_seconds=300)
+async def get_item(item_id: int, db: Session = Depends(get_db)):
     db_item = db.query(Item).filter(Item.id == item_id).first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
