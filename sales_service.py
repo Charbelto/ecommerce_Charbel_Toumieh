@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from datetime import datetime
 import httpx
 from typing import List, Optional
+from prometheus_client import Counter, Histogram, generate_latest
+import time
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./sales.db"
@@ -125,50 +127,25 @@ async def get_item_details_api(item_id: int):
     """Get full details of a specific item"""
     return await get_item_details(item_id)
 
+# Prometheus metrics
+SALES_COUNTER = Counter('total_sales', 'Total number of sales')
+REQUEST_TIME = Histogram('request_processing_seconds', 'Time spent processing request')
+
+# Add this endpoint to expose metrics
+@app.get("/metrics")
+def metrics():
+    return generate_latest()
+
+# Modify the make_purchase endpoint to include metrics
 @app.post("/sales/", response_model=PurchaseResponse)
 async def make_purchase(purchase: PurchaseRequest, db: Session = Depends(get_db)):
-    """Process a sale transaction"""
-    # Get item details
-    item = await get_item_details(purchase.item_id)
-    
-    # Calculate total price
-    total_price = item.price * purchase.quantity
-    
-    # Check customer balance
-    customer_balance = await get_customer_balance(purchase.customer_username)
-    if customer_balance < total_price:
-        raise HTTPException(status_code=400, detail="Insufficient funds")
-    
-    # Check stock availability
-    if item.stock_count < purchase.quantity:
-        raise HTTPException(status_code=400, detail="Insufficient stock")
-    
+    start_time = time.time()
     try:
-        # Deduct money from customer wallet
-        await deduct_customer_balance(purchase.customer_username, total_price)
-        
-        # Deduct items from inventory
-        await deduct_item_stock(purchase.item_id, purchase.quantity)
-        
-        # Record the purchase
-        db_purchase = Purchase(
-            customer_username=purchase.customer_username,
-            item_id=purchase.item_id,
-            item_name=item.name,
-            quantity=purchase.quantity,
-            price_per_item=item.price,
-            total_price=total_price
-        )
-        db.add(db_purchase)
-        db.commit()
-        db.refresh(db_purchase)
-        
-        return db_purchase
-    
-    except Exception as e:
-        # In case of any error, rollback the database transaction
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Transaction failed")
+        result = await process_purchase(purchase, db)
+        SALES_COUNTER.inc()
+        return result
+    finally:
+        REQUEST_TIME.observe(time.time() - start_time)
 
 @app.get("/purchases/{customer_username}", response_model=List[PurchaseResponse])
 async def get_customer_purchases(customer_username: str, db: Session = Depends(get_db)):

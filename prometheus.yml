@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'customer_service'
+    static_configs:
+      - targets: ['customer_service:8000']
+
+  - job_name: 'sales_service'
+    static_configs:
+      - targets: ['sales_service:8000']
+
+  - job_name: 'inventory_service'
+    static_configs:
+      - targets: ['inventory_service:8000']
+
+  - job_name: 'analytics_service'
+    static_configs:
+      - targets: ['analytics_service:8000']
