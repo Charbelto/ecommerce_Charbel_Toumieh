@@ -57,8 +57,8 @@ Each service is containerized and can be scaled independently. The system uses:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/ecommerce-microservices.git
-cd ecommerce-microservices
+git clone https://github.com/Charbelto/ecommerce_Charbel_Toumieh.git
+cd ecommerce_Charbel_Toumieh
 ```
 
 2. Create environment files:
