@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -8,6 +8,8 @@ import httpx
 from typing import List, Optional
 from prometheus_client import Counter, Histogram, generate_latest
 import time
+from utils.exceptions import ResourceNotFoundException, InsufficientFundsException
+from utils.version import VersionedAPI
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./sales.db"
@@ -64,6 +66,10 @@ class PurchaseResponse(BaseModel):
 
 # FastAPI app
 app = FastAPI()
+versioned_api = VersionedAPI(app)
+
+# Add version middleware
+app.middleware("http")(versioned_api.version_middleware)
 
 # Dependency
 def get_db():
@@ -72,6 +78,26 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Version 1 endpoints
+@versioned_api.version("v1")
+@app.get("/sales/", response_model=List[PurchaseResponse])
+async def list_sales_v1(db: Session = Depends(get_db)):
+    return db.query(Purchase).all()
+
+# Version 2 endpoints with enhanced features
+@versioned_api.version("v2")
+@app.get("/sales/", response_model=List[PurchaseResponse])
+async def list_sales_v2(
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100,
+    sort_by: str = "purchase_date"
+):
+    query = db.query(Purchase)
+    if sort_by:
+        query = query.order_by(getattr(Purchase, sort_by).desc())
+    return query.offset(skip).limit(limit).all()
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -108,6 +134,38 @@ async def deduct_item_stock(item_id: int, quantity: int):
         )
         if response.status_code != 200:
             raise HTTPException(status_code=400, detail="Failed to update inventory")
+
+async def process_purchase(purchase: PurchaseRequest, db: Session) -> Purchase:
+    # Get customer balance and item details
+    balance = await get_customer_balance(purchase.customer_username)
+    item = await get_item_details(purchase.item_id)
+    total_cost = item.price * purchase.quantity
+    
+    # Verify funds and process payment
+    if balance < total_cost:
+        raise InsufficientFundsException(
+            username=purchase.customer_username,
+            required=total_cost,
+            available=balance
+        )
+    
+    await deduct_customer_balance(purchase.customer_username, total_cost)
+    await deduct_item_stock(purchase.item_id, purchase.quantity)
+    
+    # Create and save purchase record
+    db_purchase = Purchase(
+        customer_username=purchase.customer_username,
+        item_id=purchase.item_id,
+        item_name=item.name,
+        quantity=purchase.quantity,
+        price_per_item=item.price,
+        total_price=total_cost
+    )
+    db.add(db_purchase)
+    db.commit()
+    db.refresh(db_purchase)
+    
+    return db_purchase
 
 # API Endpoints
 @app.get("/items/", response_model=List[ItemBrief])
@@ -155,3 +213,29 @@ async def get_customer_purchases(customer_username: str, db: Session = Depends(g
     ).order_by(Purchase.purchase_date.desc()).all()
     
     return purchases
+
+# Example of using custom exceptions
+@app.post("/sales/", response_model=PurchaseResponse)
+async def make_purchase(purchase: PurchaseRequest, db: Session = Depends(get_db)):
+    try:
+        balance = await get_customer_balance(purchase.customer_username)
+        item = await get_item_details(purchase.item_id)
+        total_cost = item.price * purchase.quantity
+        
+        if balance < total_cost:
+            raise InsufficientFundsException(
+                username=purchase.customer_username,
+                required=total_cost,
+                available=balance
+            )
+            
+        # Process purchase logic here...
+        
+    except HTTPException as e:
+        if e.status_code == 404:
+            raise ResourceNotFoundException(
+                resource="item" if "Item" in str(e) else "customer",
+                service="sales",
+                resource_id=purchase.item_id if "Item" in str(e) else purchase.customer_username
+            )
+        raise
