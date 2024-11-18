@@ -76,9 +76,14 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=customer_db
     volumes:
+      - ./database/init:/docker-entrypoint-initdb.d
       - customer_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   sales_db:
     image: postgres:13
@@ -94,9 +99,14 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=inventory_db
     volumes:
+      - ./database/init:/docker-entrypoint-initdb.d
       - inventory_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth_db:
     image: postgres:13
