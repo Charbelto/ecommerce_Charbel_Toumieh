@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 import httpx
 from typing import List, Dict
 import asyncio
+from utils.profiling_manager import ProfilingManager
+from utils.profiling import performance_profile, track_memory_usage
+import uuid
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "postgresql://postgres:password@analytics_db:5432/analytics_db"
@@ -99,6 +102,16 @@ Dependencies:
     - FastAPI for API endpoints
 """
 
+profiling_manager = ProfilingManager()
+
+@app.middleware("http")
+async def profiling_middleware(request: Request, call_next):
+    with profiling_manager.profile_request(request_id=str(uuid.uuid4())):
+        response = await call_next(request)
+        return response
+
+@performance_profile(output_file="profile_results.prof")
+@track_memory_usage
 async def get_dashboard_metrics(
     time_range: str = "24h",
     db: Session = Depends(get_db)
