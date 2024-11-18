@@ -80,12 +80,49 @@ async def fetch_inventory_data() -> Dict:
         response = await client.get(f"{INVENTORY_SERVICE_URL}/items/top-selling")
         return response.json()
 
-@app.get("/analytics/dashboard", response_model=MetricsResponse)
+"""
+Analytics Service
+===============
+
+Provides real-time analytics and reporting capabilities for the e-commerce platform.
+
+Features:
+    - Real-time metrics calculation
+    - Historical data analysis
+    - Trend analysis
+    - Customer behavior insights
+    - Sales performance metrics
+
+Dependencies:
+    - PostgreSQL for metrics storage
+    - Redis for caching
+    - FastAPI for API endpoints
+"""
+
 async def get_dashboard_metrics(
     time_range: str = "24h",
     db: Session = Depends(get_db)
-):
-    """Get dashboard metrics for the specified time range"""
+) -> MetricsResponse:
+    """
+    Generate dashboard metrics for specified time range.
+
+    Aggregates data from multiple services to provide comprehensive metrics including:
+    - Total revenue
+    - Order count
+    - Average order value
+    - Customer metrics
+    - Top-selling items
+
+    Args:
+        time_range (str): Time range for metrics ("24h", "7d", "30d")
+        db (Session): Database session
+
+    Returns:
+        MetricsResponse: Aggregated metrics data
+
+    Raises:
+        HTTPException: If time range is invalid
+    """
     end_date = datetime.utcnow()
     
     if time_range == "24h":

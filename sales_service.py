@@ -136,6 +136,27 @@ async def deduct_item_stock(item_id: int, quantity: int):
             raise HTTPException(status_code=400, detail="Failed to update inventory")
 
 async def process_purchase(purchase: PurchaseRequest, db: Session) -> Purchase:
+    """
+    Process a new purchase transaction.
+
+    This function handles the complete purchase flow:
+    1. Validates customer funds
+    2. Checks item availability
+    3. Creates purchase record
+    4. Updates inventory
+    5. Processes payment
+
+    Args:
+        purchase (PurchaseRequest): Purchase request containing customer and item details
+        db (Session): Database session for transaction management
+
+    Returns:
+        Purchase: Created purchase record
+
+    Raises:
+        InsufficientFundsException: If customer has insufficient funds
+        ResourceNotFoundException: If item or customer not found
+    """
     # Get customer balance and item details
     balance = await get_customer_balance(purchase.customer_username)
     item = await get_item_details(purchase.item_id)

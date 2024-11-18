@@ -26,6 +26,20 @@ class MaritalStatus(str, enum.Enum):
 
 # Database Model
 class Customer(Base):
+    """
+    Customer database model representing the customers table.
+
+    Attributes:
+        id (int): Primary key
+        full_name (str): Customer's full name
+        username (str): Unique username for identification
+        password (str): Hashed password (in production)
+        age (int): Customer's age
+        address (str): Customer's address
+        gender (Gender): Customer's gender (enum)
+        marital_status (MaritalStatus): Customer's marital status (enum)
+        wallet_balance (float): Current wallet balance
+    """
     __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -130,6 +144,20 @@ def get_customer(username: str, db: Session = Depends(get_db)):
 
 @app.post("/customers/{username}/charge")
 def charge_wallet(username: str, amount: float, db: Session = Depends(get_db)):
+    """
+    Add funds to customer's wallet.
+
+    Args:
+        username (str): Customer's username
+        amount (float): Amount to add to wallet
+        db (Session): Database session dependency
+
+    Returns:
+        dict: Message confirming the charge and new balance
+
+    Raises:
+        HTTPException: If customer not found or amount is invalid
+    """
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
     
