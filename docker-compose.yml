@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  customer_service:
+    build: 
+      context: ./services/customer
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@customer_db:5432/customer_db
+    depends_on:
+      - customer_db
+
+  sales_service:
+    build:
+      context: ./services/sales
+    ports:
+      - "8002:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@sales_db:5432/sales_db
+    depends_on:
+      - sales_db
+
+  inventory_service:
+    build:
+      context: ./services/inventory
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@inventory_db:5432/inventory_db
+    depends_on:
+      - inventory_db
+
+  auth_service:
+    build:
+      context: ./services/auth
+    ports:
+      - "8003:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@auth_db:5432/auth_db
+    depends_on:
+      - auth_db
+
+  # Databases
+  customer_db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=customer_db
+    volumes:
+      - customer_data:/var/lib/postgresql/data
+
+  sales_db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=sales_db
+    volumes:
+      - sales_data:/var/lib/postgresql/data
+
+  inventory_db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=inventory_db
+    volumes:
+      - inventory_data:/var/lib/postgresql/data
+
+  auth_db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=auth_db
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+
+volumes:
+  customer_data:
+  sales_data:
+  inventory_data:
+  auth_data:
