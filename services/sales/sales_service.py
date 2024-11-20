@@ -108,7 +108,8 @@ async def get_customer_balance(username: str) -> float:
         response = await client.get(f"{CUSTOMER_SERVICE_URL}/customers/{username}")
         if response.status_code == 404:
             raise HTTPException(status_code=404, detail="Customer not found")
-        return response.json()["wallet_balance"]
+        response_json = await response.json()
+        return response_json["wallet_balance"]
 
 async def deduct_customer_balance(username: str, amount: float):
     async with httpx.AsyncClient() as client:
@@ -124,7 +125,8 @@ async def get_item_details(item_id: int) -> ItemBase:
         response = await client.get(f"{INVENTORY_SERVICE_URL}/items/{item_id}")
         if response.status_code == 404:
             raise HTTPException(status_code=404, detail="Item not found")
-        return ItemBase(**response.json())
+        response_json = await response.json()
+        return ItemBase(**response_json)
 
 async def deduct_item_stock(item_id: int, quantity: int):
     async with httpx.AsyncClient() as client:

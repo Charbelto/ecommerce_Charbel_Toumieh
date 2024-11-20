@@ -1,6 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
 from services.inventory.inventory_service import app
+from sqlalchemy import Index
+from utils.cache import cache_response, invalidate_cache
+
 
 client = TestClient(app)
 

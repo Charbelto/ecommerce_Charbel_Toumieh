@@ -4,6 +4,9 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 import os
 import sys
+import time
+from unittest.mock import patch
+import fakeredis
 
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,11 +33,23 @@ def test_db():
     
     # Create test database session
     db = TestingSessionLocal()
-    yield db
-    
-    # Cleanup
-    db.close()
-    os.remove("./test.db")
+    try:
+        yield db
+    finally:
+        db.close()
+        engine.dispose()
+        # Wait a bit before trying to remove the file
+        time.sleep(0.1)
+        try:
+            if os.path.exists("./test.db"):
+                os.remove("./test.db")
+        except PermissionError:
+            pass  # Ignore permission errors during cleanup
+
+@pytest.fixture(autouse=True)
+def mock_redis():
+    with patch('utils.cache.redis_client', fakeredis.FakeStrictRedis()):
+        yield
 
 @pytest.fixture
 def mock_redis(mocker):

@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from datetime import datetime
 import httpx
 from typing import List, Optional
@@ -50,7 +50,7 @@ class ReviewBase(BaseModel):
     comment: str = Field(
         min_length=1,
         max_length=1000,
-        regex="^[a-zA-Z0-9\s.,!?-]*$",
+        pattern=r"^[a-zA-Z0-9\s.,!?-]*$",
         description="Review comment with allowed characters"
     )
 

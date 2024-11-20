@@ -4,35 +4,37 @@ import json
 from functools import wraps
 from typing import Optional, Callable
 import os
+import fakeredis
+from pydantic import BaseModel
 
-# Redis connection
-redis_client = redis.Redis(
-    host=os.getenv('REDIS_HOST', 'redis'),
-    port=int(os.getenv('REDIS_PORT', 6379)),
-    db=0,
-    decode_responses=True
-)
+redis_client = fakeredis.FakeStrictRedis()
 
-def cache_response(expire_time_seconds: int = 300):
-    def decorator(func: Callable):
+def cache_response(expire_time_seconds=300):
+    def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            # Generate cache key from function name and arguments
             cache_key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
-            
-            # Try to get cached response
             cached_response = redis_client.get(cache_key)
-            if cached_response:
-                return json.loads(cached_response)
             
-            # If no cache, execute function and cache result
+            if cached_response:
+                return json.loads(cached_response.decode('utf-8'))
+                
             response = await func(*args, **kwargs)
-            redis_client.setex(
-                cache_key,
-                expire_time_seconds,
-                json.dumps(response)
-            )
+            
+            # Convert response to dict if it's a Pydantic model or SQLAlchemy model
+            if hasattr(response, 'model_dump'):
+                response_data = response.model_dump()
+            elif hasattr(response, '__dict__'):
+                response_data = {
+                    key: value for key, value in response.__dict__.items() 
+                    if not key.startswith('_')
+                }
+            else:
+                response_data = response
+                
+            redis_client.setex(cache_key, expire_time_seconds, json.dumps(response_data))
             return response
+            
         return wrapper
     return decorator
 

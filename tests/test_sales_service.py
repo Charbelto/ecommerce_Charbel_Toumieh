@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from services.sales.sales_service import app
 import httpx
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 client = TestClient(app)
 
@@ -18,14 +18,16 @@ def sample_purchase_data():
 def mock_external_services():
     with patch('httpx.AsyncClient.get') as mock_get, \
          patch('httpx.AsyncClient.post') as mock_post:
-        # Mock customer service responses
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.json.return_value = {
-            "username": "johndoe",
-            "wallet_balance": 1000.0
-        }
         
-        # Mock inventory service responses
+        # Configure mock to return proper async response
+        async def async_json():
+            return {"username": "johndoe", "wallet_balance": 1000.0}
+        
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json = async_json
+        
+        mock_get.return_value = mock_response
         mock_post.return_value.status_code = 200
         yield mock_get, mock_post
 
@@ -48,12 +50,27 @@ def test_get_customer_purchases(test_db, sample_purchase_data, mock_external_ser
 @pytest.mark.asyncio
 async def test_process_purchase_insufficient_funds(test_db, sample_purchase_data):
     with patch('httpx.AsyncClient.get') as mock_get:
-        # Mock customer with insufficient funds
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.json.return_value = {
-            "username": "johndoe",
-            "wallet_balance": 1.0
-        }
+        async def mock_json():
+            # Return different responses based on the URL
+            if "customers" in mock_get.call_args[0][0]:
+                return {
+                    "username": "johndoe",
+                    "wallet_balance": 1.0
+                }
+            elif "items" in mock_get.call_args[0][0]:
+                return {
+                    "id": 1,
+                    "name": "Test Item",
+                    "category": "electronics",
+                    "price": 99.99,
+                    "description": "A test item",
+                    "stock_count": 10
+                }
+            
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json = mock_json
+        mock_get.return_value = mock_response
         
         response = client.post("/sales/", json=sample_purchase_data)
         assert response.status_code == 400
