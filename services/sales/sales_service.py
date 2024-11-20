@@ -18,8 +18,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # Service URLs
-CUSTOMER_SERVICE_URL = "http://localhost:8000"
-INVENTORY_SERVICE_URL = "http://localhost:8001"
+CUSTOMER_SERVICE_URL = "http://customer_service:8000"
+INVENTORY_SERVICE_URL = "http://inventory_service:8001"
 
 # Database Models
 class Purchase(Base):

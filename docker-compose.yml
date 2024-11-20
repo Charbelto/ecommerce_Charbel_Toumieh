@@ -11,16 +11,6 @@ services:
     depends_on:
       - customer_db
 
-  sales_service:
-    build:
-      context: ./services/sales
-    ports:
-      - "8002:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@sales_db:5432/sales_db
-    depends_on:
-      - sales_db
-
   inventory_service:
     build:
       context: ./services/inventory
@@ -31,44 +21,25 @@ services:
     depends_on:
       - inventory_db
 
-  auth_service:
+  sales_service:
     build:
-      context: ./services/auth
+      context: ./services/sales
+    ports:
+      - "8002:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@sales_db:5432/sales_db
+    depends_on:
+      - sales_db
+
+  reviews_service:
+    build:
+      context: ./services/reviews
     ports:
       - "8003:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@auth_db:5432/auth_db
+      - DATABASE_URL=postgresql://postgres:password@reviews_db:5432/reviews_db
     depends_on:
-      - auth_db
-
-  monitoring_service:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-
-  analytics_service:
-    build:
-      context: ./services/analytics
-    ports:
-      - "8004:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@analytics_db:5432/analytics_db
-    depends_on:
-      - analytics_db
+      - reviews_db
 
   # Databases
   customer_db:
@@ -76,14 +47,18 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=customer_db
     volumes:
-      - ./database/init:/docker-entrypoint-initdb.d
       - customer_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+
+  inventory_db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=inventory_db
+    volumes:
+      - inventory_data:/var/lib/postgresql/data
 
   sales_db:
     image: postgres:13
@@ -94,66 +69,17 @@ services:
     volumes:
       - sales_data:/var/lib/postgresql/data
 
-  inventory_db:
+  reviews_db:
     image: postgres:13
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=reviews_db
     volumes:
-      - ./database/init:/docker-entrypoint-initdb.d
-      - inventory_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  auth_db:
-    image: postgres:13
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=auth_db
-    volumes:
-      - auth_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:6.2-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --save 20 1 --loglevel warning
-
-  # Add HAProxy for load balancing
-  haproxy:
-    image: haproxy:2.4
-    ports:
-      - "80:80"
-      - "8404:8404"  # Stats port
-    volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    depends_on:
-      - customer_service
-      - sales_service
-      - inventory_service
-      - auth_service
-
-  analytics_db:
-    image: postgres:13
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=analytics_db
-    volumes:
-      - analytics_data:/var/lib/postgresql/data
+      - reviews_data:/var/lib/postgresql/data
 
 volumes:
   customer_data:
-  sales_data:
   inventory_data:
-  auth_data:
-  redis_data:
-  grafana_data:
-  prometheus_data:
-  analytics_data:
+  sales_data:
+  reviews_data:
