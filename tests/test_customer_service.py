@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from customer_service import app, Customer
+from services.customer.customer_service import app, Customer
 from decimal import Decimal
 
 client = TestClient(app)

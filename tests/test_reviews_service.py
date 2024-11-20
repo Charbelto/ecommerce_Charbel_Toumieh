@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from reviews_service import app
+from services.reviews.reviews_service import app
 from unittest.mock import patch
 
 client = TestClient(app)

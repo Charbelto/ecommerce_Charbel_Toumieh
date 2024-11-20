@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from inventory_service import app
+from services.inventory.inventory_service import app
 
 client = TestClient(app)
 

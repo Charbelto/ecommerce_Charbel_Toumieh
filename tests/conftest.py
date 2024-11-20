@@ -18,10 +18,10 @@ def test_db():
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
     # Create all tables
-    from customer_service import Base as CustomerBase
-    from inventory_service import Base as InventoryBase
-    from sales_service import Base as SalesBase
-    from reviews_service import Base as ReviewsBase
+    from services.customer.customer_service import Base as CustomerBase
+    from services.inventory.inventory_service import Base as InventoryBase
+    from services.sales.sales_service import Base as SalesBase
+    from services.reviews.reviews_service import Base as ReviewsBase
     
     CustomerBase.metadata.create_all(bind=engine)
     InventoryBase.metadata.create_all(bind=engine)

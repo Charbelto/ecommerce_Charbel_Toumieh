@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from sales_service import app
+from services.sales.sales_service import app
 import httpx
 from unittest.mock import patch
 
