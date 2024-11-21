@@ -1,12 +1,17 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import create_engine, Column, Integer, String, Float, Enum
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base  # Updated import
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel, Field
 import enum
 from typing import Optional
 from sqlalchemy import Index
 from utils.cache import cache_response, invalidate_cache
+from pydantic import ConfigDict
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from .models import Item, Base
+from .database import engine, SessionLocal
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./inventory.db"
@@ -57,9 +62,8 @@ class ItemUpdate(BaseModel):
 
 class ItemResponse(ItemBase):
     id: int
-
-    class Config:
-        orm_mode = True
+    
+    model_config = ConfigDict(from_attributes=True)
 
 # FastAPI app
 app = FastAPI()
@@ -78,7 +82,7 @@ Base.metadata.create_all(bind=engine)
 # API Endpoints
 @app.post("/items/", response_model=ItemResponse)
 def add_item(item: ItemCreate, db: Session = Depends(get_db)):
-    db_item = Item(**item.dict())
+    db_item = Item(**item.model_dump())
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
@@ -91,7 +95,7 @@ async def update_item(item_id: int, item_update: ItemUpdate, db: Session = Depen
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    update_data = item_update.dict(exclude_unset=True)
+    update_data = item_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_item, key, value)
     

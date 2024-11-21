@@ -2,12 +2,30 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel, Field, validator, ConfigDict
+from pydantic import BaseModel, Field, validator, ConfigDict, field_validator
 from datetime import datetime
 import httpx
 from typing import List, Optional
 from enum import Enum
 import re
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from .models import Review, Base
+from .database import engine, SessionLocal
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey
+from sqlalchemy.orm import declarative_base  # Updated import
+from sqlalchemy.orm import sessionmaker, Session
+from pydantic import BaseModel, Field, validator, ConfigDict, field_validator
+from datetime import datetime
+import httpx
+from typing import List, Optional
+from enum import Enum
+import re
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from .models import Review, Base
+from .database import engine, SessionLocal
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./reviews.db"
@@ -16,8 +34,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # Service URLs
-CUSTOMER_SERVICE_URL = "http://customer_service:8000"
-INVENTORY_SERVICE_URL = "http://inventory_service:8001"
+CUSTOMER_SERVICE_URL = "http://localhost:8000"
+INVENTORY_SERVICE_URL = "http://localhost:8001"
 
 # Review Status Enum
 class ReviewStatus(str, Enum):
@@ -54,15 +72,28 @@ class ReviewBase(BaseModel):
         description="Review comment with allowed characters"
     )
 
-    @validator('comment')
-    def sanitize_comment(cls, v):
+    @field_validator('comment')
+    @classmethod
+    def sanitize_comment(cls, v: str) -> str:
         # Remove any potential HTML tags
         v = re.sub('<[^<]+?>', '', v)
         # Additional sanitization as needed
         return v.strip()
 
-class ReviewCreate(ReviewBase):
+class ReviewCreate(BaseModel):
     item_id: int
+    rating: float = Field(ge=1, le=5)
+    comment: str = Field(min_length=10, max_length=1000)
+    
+    @field_validator('comment')
+    def validate_comment(cls, v):
+        if len(v.strip()) < 10:
+            raise ValueError('Comment must be at least 10 characters long')
+        # Remove any potential HTML tags
+        v = re.sub('<[^<]+?>', '', v)
+        return v.strip()
+    
+    model_config = ConfigDict(from_attributes=True)
 
 class ReviewUpdate(ReviewBase):
     pass
@@ -79,9 +110,8 @@ class ReviewResponse(ReviewBase):
     updated_at: datetime
     status: ReviewStatus
     moderation_comment: Optional[str]
-
-    class Config:
-        orm_mode = True
+    
+    model_config = ConfigDict(from_attributes=True)
 
 # FastAPI app
 app = FastAPI()

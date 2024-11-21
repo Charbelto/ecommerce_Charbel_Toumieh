@@ -1,17 +1,33 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import create_engine, Column, Integer, String, Float, Enum, Boolean, JSON
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel, ConfigDict
 import enum
 from typing import Optional, List
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy import create_engine, Column, Integer, String, Float, Enum, Boolean, JSON
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from pydantic import BaseModel, ConfigDict
+import enum
+from typing import Optional, List
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from .models import Customer, Base
+from .database import engine, SessionLocal
 
+# Create tables
+Base.metadata.create_all(bind=engine)
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./customers.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 # Enums for Gender and Marital Status
 class Gender(str, enum.Enum):
@@ -90,9 +106,8 @@ class CustomerUpdate(BaseModel):
 class CustomerResponse(CustomerBase):
     id: int
     wallet_balance: float
-
-    class Config:
-        orm_mode = True
+    
+    model_config = ConfigDict(from_attributes=True)
 
 # FastAPI app
 app = FastAPI()
@@ -140,14 +155,13 @@ def update_customer(username: str, customer_update: CustomerUpdate, db: Session 
     if not db_customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
-    update_data = customer_update.dict(exclude_unset=True)
+    update_data = customer_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_customer, key, value)
     
     db.commit()
     db.refresh(db_customer)
     return db_customer
-
 @app.get("/customers/", response_model=List[CustomerResponse])
 def get_all_customers(db: Session = Depends(get_db)):
     return db.query(Customer).all()
@@ -183,3 +197,10 @@ def deduct_from_wallet(username: str, amount: float, db: Session = Depends(get_d
     customer.wallet_balance -= amount
     db.commit()
     return {"message": f"Amount deducted successfully. New balance: ${customer.wallet_balance}"}
+
+def init_db():
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+# Call this when starting the application
+init_db()

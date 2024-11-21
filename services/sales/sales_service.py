@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Request
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 import httpx
 from typing import List, Optional
@@ -10,7 +10,27 @@ from prometheus_client import Counter, Histogram, generate_latest
 import time
 from utils.exceptions import ResourceNotFoundException, InsufficientFundsException
 from utils.version import VersionedAPI
-
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from .models import Purchase, Base
+from .database import engine, SessionLocal
+from fastapi import FastAPI, HTTPException, Depends, Request
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from pydantic import BaseModel, ConfigDict
+from datetime import datetime
+import httpx
+from typing import List, Optional
+from prometheus_client import Counter, Histogram, generate_latest
+import time
+from utils.exceptions import ResourceNotFoundException, InsufficientFundsException
+from utils.version import VersionedAPI
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from .models import Purchase, Base
+from .database import engine, SessionLocal
+from sqlalchemy.orm import declarative_base  # Updated import
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./sales.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
@@ -18,8 +38,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # Service URLs
-CUSTOMER_SERVICE_URL = "http://customer_service:8000"
-INVENTORY_SERVICE_URL = "http://inventory_service:8001"
+CUSTOMER_SERVICE_URL = "http://localhost:8000"
+INVENTORY_SERVICE_URL = "http://localhost:8001"
 
 # Database Models
 class Purchase(Base):
@@ -39,9 +59,12 @@ class ItemBase(BaseModel):
     id: int
     name: str
     price: float
-    stock_count: Optional[int]
-    category: Optional[str]
-    description: Optional[str]
+    stock: int
+    category: Optional[str] = None  # Make optional
+    description: Optional[str] = None  # Make optional 
+    username: Optional[str] = None  # Make optional
+    
+    model_config = ConfigDict(from_attributes=True)
 
 class ItemBrief(BaseModel):
     name: str
@@ -60,9 +83,8 @@ class PurchaseResponse(BaseModel):
     price_per_item: float
     total_price: float
     purchase_date: datetime
-
-    class Config:
-        orm_mode = True
+    
+    model_config = ConfigDict(from_attributes=True)
 
 # FastAPI app
 app = FastAPI()
@@ -108,8 +130,8 @@ async def get_customer_balance(username: str) -> float:
         response = await client.get(f"{CUSTOMER_SERVICE_URL}/customers/{username}")
         if response.status_code == 404:
             raise HTTPException(status_code=404, detail="Customer not found")
-        response_json = await response.json()
-        return response_json["wallet_balance"]
+        response_data = await response.json()  # Add await here
+        return float(response_data.get('wallet_balance', 0.0))
 
 async def deduct_customer_balance(username: str, amount: float):
     async with httpx.AsyncClient() as client:

@@ -1,4 +1,4 @@
-fastapi==0.68.0
+fastapi==0.104.1
 uvicorn==0.15.0
 sqlalchemy==1.4.23
 psycopg2-binary==2.9.1
@@ -12,3 +12,4 @@ prometheus-client==0.11.0
 pytest==6.2.5
 coverage==6.2
 memory-profiler==0.58.0
+pydantic==2.5.2
