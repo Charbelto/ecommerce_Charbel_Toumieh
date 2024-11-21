@@ -10,6 +10,7 @@ import asyncio
 from utils.profiling_manager import ProfilingManager
 from utils.profiling import performance_profile, track_memory_usage
 import uuid
+from utils.profiling_decorators import detailed_profile
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "postgresql://postgres:password@analytics_db:5432/analytics_db"
@@ -112,6 +113,7 @@ async def profiling_middleware(request: Request, call_next):
 
 @performance_profile(output_file="profile_results.prof")
 @track_memory_usage
+@detailed_profile(output_prefix="dashboard_metrics")
 async def get_dashboard_metrics(
     time_range: str = "24h",
     db: Session = Depends(get_db)
