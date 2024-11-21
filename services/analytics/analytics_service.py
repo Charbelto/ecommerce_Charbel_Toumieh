@@ -13,8 +13,11 @@ import uuid
 from utils.profiling_decorators import detailed_profile
 
 # Database setup
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:password@analytics_db:5432/analytics_db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SQLALCHEMY_DATABASE_URL = "sqlite:///./analytics.db"
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

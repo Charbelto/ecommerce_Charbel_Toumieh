@@ -28,7 +28,7 @@ from utils.exceptions import ResourceNotFoundException, InsufficientFundsExcepti
 from utils.version import VersionedAPI
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from .models import Purchase, Base
+from .models.purchase import Purchase, Base
 from .database import engine, SessionLocal
 from sqlalchemy.orm import declarative_base  # Updated import
 # Database setup

@@ -19,7 +19,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from .models import Customer, Base
 from .database import engine, SessionLocal
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from services.customer.models import Customer, Base
+from services.customer.database import get_db, init_db
 
+app = FastAPI()
 # Create tables
 Base.metadata.create_all(bind=engine)
 # Database setup
