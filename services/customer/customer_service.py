@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy import create_engine, Column, Integer, String, Float, Enum
+from sqlalchemy import create_engine, Column, Integer, String, Float, Enum, Boolean, JSON
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 import enum
 from typing import Optional, List
 
@@ -51,16 +52,29 @@ class Customer(Base):
     gender = Column(String)
     marital_status = Column(String)
     wallet_balance = Column(Float, default=0.0)
+    email = Column(String, unique=True, nullable=False)
+    phone = Column(String)
+    is_active = Column(Boolean, default=True)
+    role = Column(String, default="customer")
+    preferences = Column(JSON, default={})
 
 # Pydantic Models for Request/Response
 class CustomerBase(BaseModel):
-    full_name: str
     username: str
+    full_name: str
+    email: str
     password: str
-    age: int
-    address: str
-    gender: Gender
-    marital_status: MaritalStatus
+    address: str | None = None
+    age: int | None = None
+    gender: str | None = None
+    marital_status: str | None = None
+    phone: str | None = None
+    wallet_balance: float = 0.0
+    is_active: bool = True
+    role: str = "customer"
+    preferences: dict = {}
+    
+    model_config = ConfigDict(from_attributes=True)
 
 class CustomerCreate(CustomerBase):
     pass
@@ -96,16 +110,19 @@ Base.metadata.create_all(bind=engine)
 
 # API Endpoints
 @app.post("/customers/", response_model=CustomerResponse)
-def create_customer(customer: CustomerCreate, db: Session = Depends(get_db)):
-    # Check if username exists
-    if db.query(Customer).filter(Customer.username == customer.username).first():
-        raise HTTPException(status_code=400, detail="Username already registered")
-    
-    db_customer = Customer(**customer.dict())
-    db.add(db_customer)
-    db.commit()
-    db.refresh(db_customer)
-    return db_customer
+def create_customer(customer: CustomerBase, db: Session = Depends(get_db)):
+    db_customer = Customer(**customer.model_dump())
+    try:
+        db.add(db_customer)
+        db.commit()
+        db.refresh(db_customer)
+        return db_customer
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Username or email already registered"
+        )
 
 @app.delete("/customers/{username}")
 def delete_customer(username: str, db: Session = Depends(get_db)):
@@ -144,30 +161,12 @@ def get_customer(username: str, db: Session = Depends(get_db)):
 
 @app.post("/customers/{username}/charge")
 def charge_wallet(username: str, amount: float, db: Session = Depends(get_db)):
-    """
-    Add funds to customer's wallet.
-
-    Args:
-        username (str): Customer's username
-        amount (float): Amount to add to wallet
-        db (Session): Database session dependency
-
-    Returns:
-        dict: Message confirming the charge and new balance
-
-    Raises:
-        HTTPException: If customer not found or amount is invalid
-    """
-    if amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
-    
     customer = db.query(Customer).filter(Customer.username == username).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    
     customer.wallet_balance += amount
     db.commit()
-    return {"message": f"Wallet charged successfully. New balance: ${customer.wallet_balance}"}
+    return {"message": "Wallet charged successfully", "new_balance": customer.wallet_balance}
 
 @app.post("/customers/{username}/deduct")
 def deduct_from_wallet(username: str, amount: float, db: Session = Depends(get_db)):

@@ -19,16 +19,31 @@ def mock_external_services():
     with patch('httpx.AsyncClient.get') as mock_get, \
          patch('httpx.AsyncClient.post') as mock_post:
         
-        # Configure mock to return proper async response
-        async def async_json():
-            return {"username": "johndoe", "wallet_balance": 1000.0}
-        
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json = async_json
         
+        async def mock_json():
+            url = mock_get.call_args[0][0]
+            if "items" in url:
+                return {
+                    "id": 1,
+                    "name": "Test Item",
+                    "price": 99.99,
+                    "stock_count": 10,
+                    "category": "test",
+                    "description": "A test item"
+                }
+            elif "customers" in url:
+                return {
+                    "username": "johndoe",
+                    "wallet_balance": 1000.0
+                }
+            return {}
+
+        mock_response.json = mock_json
         mock_get.return_value = mock_response
-        mock_post.return_value.status_code = 200
+        mock_post.return_value = mock_response
+        
         yield mock_get, mock_post
 
 def test_make_purchase(test_db, sample_purchase_data, mock_external_services):
