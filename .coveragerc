@@ -1,6 +1,10 @@
 [run]
 source = services
 branch = True
+omit = 
+    */tests/*
+    */venv/*
+    setup.py
 
 [report]
 exclude_lines =
@@ -9,7 +13,7 @@ exclude_lines =
     raise NotImplementedError
     if __name__ == .__main__.:
     pass
-    raise ImportError
 
-[html]
-directory = coverage_html
+[paths]
+source =
+    services/

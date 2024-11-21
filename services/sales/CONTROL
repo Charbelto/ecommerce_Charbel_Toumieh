@@ -1,0 +1,10 @@
+Package: ecommerce-sales-service
+Version: 0.1.0
+Architecture: all
+Section: web
+Priority: optional
+Maintainer: Charbel Toumieh (cct08@mail.aub.edu)
+Depends: python3 (>= 3.9), python3-pip, python3-fastapi, python3-pydantic, python3-jose, python3-passlib, python3-bcrypt
+Homepage: https://github.com/Charbelto/ecommerce_Charbel_Toumieh
+
+Description: Sales service for the e-commerce platform

@@ -18,14 +18,12 @@ MEMORY_SETTINGS = {
 
 # Coverage settings
 COVERAGE_SETTINGS = {
-    "branch": True,
-    "source": ["services", "utils"],
-    "omit": [
-        "*/tests/*",
-        "*/migrations/*",
-        "*/__init__.py"
-    ]
+    "config_file": str(Path(__file__).parent.parent / ".coveragerc"),
+    "data_file": str(Path(__file__).parent.parent / ".coverage"),
+    "source": ["services"],  # Match source in .coveragerc
+    "branch": True
 }
+
 
 # Database query profiling settings
 DB_PROFILE_SETTINGS = {

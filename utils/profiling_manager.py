@@ -3,10 +3,12 @@ from contextlib import contextmanager
 import time
 import psutil
 import logging
+from pathlib import Path
 
 class ProfilingManager:
     def __init__(self):
-        self.cov = coverage.Coverage()
+        config_file = str(Path(__file__).parent.parent / ".coveragerc")
+        self.cov = coverage.Coverage(config_file=config_file)
         self.logger = logging.getLogger(__name__)
     
     @contextmanager

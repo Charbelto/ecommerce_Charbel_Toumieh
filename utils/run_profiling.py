@@ -36,14 +36,20 @@ def run_comprehensive_profiling(services=None):
     cov.start()
 
     try:
-        # Run tests with coverage enabled
-        pytest.main([
-            'tests/',
-            '-v',
-            f'--cov-config={output_dir / ".coveragerc"}',
-            f'--cov-report=html:{output_dir / "coverage"}',
-            '--cov=services'
-        ])
+        # Get absolute path to .coveragerc
+        coverage_config = str(Path(__file__).parent.parent / ".coveragerc")
+        
+        # Configure pytest arguments
+        pytest_args = [
+            "--cov-config", coverage_config,
+            "--cov-report", "xml",
+            "--cov-report", "term-missing",
+            "--cov=services",  # Match the source setting in .coveragerc
+            "tests"
+        ]
+        
+        # Run pytest with coverage
+        pytest.main(pytest_args)
 
         # Stop coverage properly
         cov.stop()
