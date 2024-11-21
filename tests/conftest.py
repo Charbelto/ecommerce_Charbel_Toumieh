@@ -18,7 +18,10 @@ def setup_test_env():
 @pytest.fixture(scope="function")
 def test_db():
     # Create test database in memory
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False}
+    )
     
     # Create all tables
     CustomerBase.metadata.create_all(engine)
@@ -27,21 +30,24 @@ def test_db():
     SaleBase.metadata.create_all(engine)
     
     # Create session
-    TestingSessionLocal = sessionmaker(bind=engine)
+    TestingSessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine
+    )
     db = TestingSessionLocal()
     
     # Override the dependency
-    def override_get_db():
-        try:
-            yield db
-        finally:
-            db.close()
-            
-    app.dependency_overrides[SessionLocal] = override_get_db
+    app.dependency_overrides[SessionLocal] = lambda: db
     
     yield db
     
-    app.dependency_overrides.clear()
+    # Cleanup
+    db.close()
+    CustomerBase.metadata.drop_all(engine)
+    InventoryBase.metadata.drop_all(engine)
+    ReviewBase.metadata.drop_all(engine)
+    SaleBase.metadata.drop_all(engine)
 
 @pytest.fixture
 def sample_customer_data():

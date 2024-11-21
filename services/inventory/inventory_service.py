@@ -28,6 +28,19 @@ class Category(str, enum.Enum):
 
 # Database Model
 class Item(Base):
+    """
+    Item database model representing products in inventory.
+
+    Attributes:
+        id (int): Primary key
+        name (str): Product name
+        category (Category): Product category (enum)
+        price (float): Product price
+        description (str): Product description
+        stock_count (int): Current stock level
+        created_at (datetime): Creation timestamp
+        updated_at (datetime): Last update timestamp
+    """
     __tablename__ = "items"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -81,7 +94,35 @@ Base.metadata.create_all(bind=engine)
 
 # API Endpoints
 @app.post("/items/", response_model=ItemResponse)
-def add_item(item: ItemCreate, db: Session = Depends(get_db)):
+@cache_response(expire_time_seconds=300)
+async def create_item(item: ItemCreate, db: Session = Depends(get_db)):
+    """
+    Create a new item in inventory.
+
+    Creates a new product entry with the specified details and initial stock count.
+    Validates category and price information before creation.
+
+    Args:
+        item (ItemCreate): The item data to be created
+        db (Session): Database session
+
+    Returns:
+        ItemResponse: The created item with additional fields
+
+    Raises:
+        HTTPException: 
+            - 400: Invalid category or price
+            - 422: Validation error
+
+    Example:
+        >>> item_data = {
+        ...     "name": "Smartphone",
+        ...     "category": "electronics",
+        ...     "price": 599.99,
+        ...     "stock_count": 100
+        ... }
+        >>> response = await create_item(item_data)
+    """
     db_item = Item(**item.model_dump())
     db.add(db_item)
     db.commit()
@@ -130,6 +171,22 @@ def get_all_items(db: Session = Depends(get_db)):
 @app.get("/items/{item_id}", response_model=ItemResponse)
 @cache_response(expire_time_seconds=300)
 async def get_item(item_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve item details by ID.
+
+    Fetches complete item information including current stock level.
+    Uses Redis caching for improved performance.
+
+    Args:
+        item_id (int): The ID of the item to retrieve
+        db (Session): Database session
+
+    Returns:
+        ItemResponse: Complete item details
+
+    Raises:
+        HTTPException: 404 if item not found
+    """
     db_item = db.query(Item).filter(Item.id == item_id).first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")

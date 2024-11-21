@@ -125,7 +125,35 @@ Base.metadata.create_all(bind=engine)
 
 # API Endpoints
 @app.post("/customers/", response_model=CustomerResponse)
-def create_customer(customer: CustomerBase, db: Session = Depends(get_db)):
+async def create_customer(customer: CustomerBase, db: Session = Depends(get_db)):
+    """
+    Create a new customer account.
+
+    This endpoint handles the creation of new customer accounts in the system.
+    It performs validation of input data, checks for existing usernames/emails,
+    and creates a new customer record in the database.
+
+    Args:
+        customer (CustomerBase): The customer data to be created.
+            Contains fields like username, email, full_name, etc.
+        db (Session): SQLAlchemy database session.
+
+    Returns:
+        CustomerResponse: The created customer object with additional fields like id.
+
+    Raises:
+        HTTPException: 
+            - 400: If username or email already exists
+            - 422: If validation fails
+
+    Example:
+        >>> customer_data = {
+        ...     "username": "john_doe",
+        ...     "email": "john@example.com",
+        ...     "full_name": "John Doe"
+        ... }
+        >>> response = await create_customer(customer_data)
+    """
     db_customer = Customer(**customer.model_dump())
     try:
         db.add(db_customer)

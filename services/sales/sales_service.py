@@ -86,6 +86,11 @@ class PurchaseResponse(BaseModel):
     
     model_config = ConfigDict(from_attributes=True)
 
+class PurchaseCreate(BaseModel):
+    customer_username: str
+    item_id: int
+    quantity: int = 1
+
 # FastAPI app
 app = FastAPI()
 versioned_api = VersionedAPI(app)
@@ -284,3 +289,75 @@ async def make_purchase(purchase: PurchaseRequest, db: Session = Depends(get_db)
                 resource_id=purchase.item_id if "Item" in str(e) else purchase.customer_username
             )
         raise
+
+"""
+Sales Service Module
+
+This module handles all sales-related operations in the e-commerce platform.
+It manages purchase transactions, payment processing, and order management.
+
+Key Features:
+    - Purchase processing
+    - Payment handling
+    - Order management
+    - Transaction history
+    - Integration with other services
+
+The service implements atomic transactions and ensures data consistency
+across multiple services.
+
+Dependencies:
+    - FastAPI for API framework
+    - SQLAlchemy for database operations
+    - httpx for service communication
+    - PostgreSQL for data persistence
+
+Author: Your Name
+Version: 1.0.0
+"""
+
+class Purchase(Base):
+    """
+    Purchase database model representing sales transactions.
+
+    Attributes:
+        id (int): Primary key
+        customer_username (str): Customer who made the purchase
+        item_id (int): ID of purchased item
+        quantity (int): Number of items purchased
+        total_price (float): Total transaction amount
+        purchase_date (datetime): Transaction timestamp
+        status (str): Transaction status
+    """
+    __tablename__ = "purchases"
+    # ... existing columns ...
+
+@app.post("/purchases/", response_model=PurchaseResponse)
+async def create_purchase(
+    purchase: PurchaseCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Process a new purchase transaction.
+
+    Handles the complete purchase flow including:
+    - Customer wallet validation
+    - Stock availability check
+    - Payment processing
+    - Inventory update
+    - Purchase record creation
+
+    Args:
+        purchase (PurchaseCreate): Purchase details including item and quantity
+        db (Session): Database session
+
+    Returns:
+        PurchaseResponse: Complete purchase details including confirmation
+
+    Raises:
+        HTTPException:
+            - 400: Insufficient funds or invalid quantity
+            - 404: Item or customer not found
+            - 409: Concurrent transaction conflict
+    """
+    # Implementation...

@@ -26,7 +26,10 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from .models import Review, Base
 from .database import engine, SessionLocal
-
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from .models.review import Review, Base
+from .database import engine, SessionLocal, get_db
 # Database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./reviews.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
@@ -60,40 +63,12 @@ class Review(Base):
 
 # Pydantic Models
 class ReviewBase(BaseModel):
-    rating: float = Field(
-        ge=1, 
-        le=5, 
-        description="Rating must be between 1 and 5"
-    )
-    comment: str = Field(
-        min_length=1,
-        max_length=1000,
-        pattern=r"^[a-zA-Z0-9\s.,!?-]*$",
-        description="Review comment with allowed characters"
-    )
-
-    @field_validator('comment')
-    @classmethod
-    def sanitize_comment(cls, v: str) -> str:
-        # Remove any potential HTML tags
-        v = re.sub('<[^<]+?>', '', v)
-        # Additional sanitization as needed
-        return v.strip()
-
-class ReviewCreate(BaseModel):
-    item_id: int
     rating: float = Field(ge=1, le=5)
-    comment: str = Field(min_length=10, max_length=1000)
-    
-    @field_validator('comment')
-    def validate_comment(cls, v):
-        if len(v.strip()) < 10:
-            raise ValueError('Comment must be at least 10 characters long')
-        # Remove any potential HTML tags
-        v = re.sub('<[^<]+?>', '', v)
-        return v.strip()
-    
-    model_config = ConfigDict(from_attributes=True)
+    comment: str = Field(min_length=1, max_length=1000)
+    item_id: int
+
+class ReviewCreate(ReviewBase):
+    pass
 
 class ReviewUpdate(ReviewBase):
     pass
@@ -105,11 +80,7 @@ class ReviewModeration(BaseModel):
 class ReviewResponse(ReviewBase):
     id: int
     customer_username: str
-    item_id: int
-    created_at: datetime
-    updated_at: datetime
-    status: ReviewStatus
-    moderation_comment: Optional[str]
+    status: str
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -147,28 +118,29 @@ async def create_review(
     customer_username: str,
     db: Session = Depends(get_db)
 ):
-    """Submit a new review for a product"""
-    # Verify customer and item exist
-    await verify_customer(customer_username)
-    await verify_item(review.item_id)
-    
-    # Check if user already reviewed this item
-    existing_review = db.query(Review).filter(
-        Review.customer_username == customer_username,
-        Review.item_id == review.item_id
-    ).first()
-    
-    if existing_review:
-        raise HTTPException(status_code=400, detail="You have already reviewed this item")
-    
-    db_review = Review(
-        customer_username=customer_username,
-        **review.dict()
-    )
-    db.add(db_review)
-    db.commit()
-    db.refresh(db_review)
-    return db_review
+    try:
+        # Verify customer and item exist
+        await verify_customer(customer_username)
+        await verify_item(review.item_id)
+        
+        # Create review object
+        db_review = Review(
+            customer_username=customer_username,
+            item_id=review.item_id,
+            rating=review.rating,
+            comment=review.comment,
+            status=ReviewStatus.PENDING.value
+        )
+        
+        db.add(db_review)
+        db.commit()
+        db.refresh(db_review)
+        
+        return db_review
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/reviews/{review_id}", response_model=ReviewResponse)
 async def update_review(
