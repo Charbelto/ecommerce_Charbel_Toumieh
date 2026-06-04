@@ -256,3 +256,17 @@ def setup_error_handlers(app: FastAPI):
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
  
+
+---
+
+## 🛠️ System Architecture
+
+```mermaid
+graph TD
+    A[Web Browser / Client API Request] --> B[HAProxy Load Balancer / API Gateway]
+    B --> C[FastAPI Microservice Cluster]
+    C --> D[Database Routing & Auth Validation]
+    D --> E[(SQLite Database Store)]
+    C --> F[Docker Container Deployment]
+    C --> G[Prometheus/Grafana Metrics Monitoring]
+```
